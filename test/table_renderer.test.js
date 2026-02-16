@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getRenderableCells } from '../src/modules/table_renderer.js';
+import { getRenderableCells, getJournalTemplatesApi } from '../src/modules/table_renderer.js';
 
 test('getRenderableCells skips covered cells and keeps top-left span', () => {
   const row = { rowId: 'r1' };
@@ -16,4 +16,19 @@ test('getRenderableCells skips covered cells and keeps top-left span', () => {
     { colKey: 'a', span: { rowSpan: 2, colSpan: 2 } },
     { colKey: 'c', span: { rowSpan: 1, colSpan: 1 } }
   ]);
+});
+
+test('getJournalTemplatesApi prefers top-level sdo.journalTemplates', () => {
+  const preferred = { getTemplate: async () => ({ id: 'test' }) };
+  const fromApi = { getTemplate: async () => ({ id: 'from-api' }) };
+
+  const runtime = {
+    sdo: {
+      journalTemplates: preferred,
+      api: { journalTemplates: fromApi }
+    },
+    api: { journalTemplates: fromApi }
+  };
+
+  assert.equal(getJournalTemplatesApi(runtime), preferred);
 });

@@ -29,11 +29,23 @@ function normalizeRecord(record = {}) {
   };
 }
 
+function normalizeMerge(merge = {}) {
+  return {
+    rowId: merge.rowId,
+    colKey: merge.colKey,
+    rowSpan: Math.max(1, Number(merge.rowSpan ?? 1) || 1),
+    colSpan: Math.max(1, Number(merge.colSpan ?? 1) || 1)
+  };
+}
+
 function normalizeDataset(journalId, input = {}) {
   return {
     journalId,
     schemaId: input.schemaId,
     records: ensureArray(input.records).map((record) => normalizeRecord(record)),
+    merges: ensureArray(input.merges)
+      .filter((merge) => merge?.rowId && merge?.colKey)
+      .map((merge) => normalizeMerge(merge)),
     meta: {
       createdAt: input.meta?.createdAt ?? nowIso(),
       updatedAt: input.meta?.updatedAt ?? nowIso(),
@@ -156,6 +168,27 @@ export function createTableStoreModule() {
     }
 
     return saveDataset(storage, { ...current, records: nextRecords });
+  }
+
+  async function setDataset(storage, journalId, patch = {}, mode = 'merge') {
+    const incoming = normalizeDataset(journalId, { ...patch, journalId });
+    if (mode === 'replace') {
+      return saveDataset(storage, incoming);
+    }
+
+    const current = await getDataset(storage, journalId);
+    const map = new Map(current.records.map((record) => [record.id, record]));
+    for (const record of incoming.records) map.set(record.id, record);
+
+    const mergeMap = new Map(current.merges.map((merge) => [`${merge.rowId}:${merge.colKey}`, merge]));
+    for (const merge of incoming.merges) mergeMap.set(`${merge.rowId}:${merge.colKey}`, merge);
+
+    return saveDataset(storage, {
+      ...current,
+      schemaId: incoming.schemaId ?? current.schemaId,
+      records: [...map.values()],
+      merges: [...mergeMap.values()]
+    });
   }
 
   async function exportTableData(storage, { journalIds, includeFormatting = true } = {}) {
@@ -281,6 +314,9 @@ export function createTableStoreModule() {
         clearDataset: (journalId) => clearDataset(ctx.storage, journalId),
         upsertRecords: async (journalId, records, mode = 'merge') => {
           await upsertRecords(ctx.storage, journalId, records, mode);
+        },
+        setDataset: async (journalId, datasetPatch, mode = 'merge') => {
+          await setDataset(ctx.storage, journalId, datasetPatch, mode);
         },
         deleteRecords: async (journalId, ids = []) => {
           const remove = new Set(ids);

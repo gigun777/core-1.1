@@ -19,6 +19,13 @@ export function getRenderableCells(row, columns, cellSpanMap) {
   return cells;
 }
 
+export function getJournalTemplatesApi(runtime) {
+  return runtime?.sdo?.journalTemplates
+    || runtime?.api?.journalTemplates
+    || runtime?.sdo?.api?.journalTemplates
+    || null;
+}
+
 function normalizeDataset(input = {}) {
   return {
     records: Array.isArray(input.records) ? input.records : [],
@@ -88,7 +95,7 @@ export function createTableRendererModule(opts = {}) {
     const journal = (state?.journals ?? []).find((j) => j.id === journalId);
     let templateId = journal?.templateId;
 
-    const jt = runtime?.api?.journalTemplates || runtime?.sdo?.api?.journalTemplates;
+    const jt = getJournalTemplatesApi(runtime);
     if (!jt?.getTemplate) return { schema: { id: 'tpl:__none__', fields: [] }, journal, state };
 
     // Auto-heal: if journal exists but has no templateId, assign default (prefer "test")
@@ -133,8 +140,15 @@ export function createTableRendererModule(opts = {}) {
 
   async function saveDataset(runtime, storage, journalId, dataset) {
     const store = runtime?.api?.tableStore || runtime?.sdo?.api?.tableStore;
+    if (store?.setDataset && journalId) {
+      await store.setDataset(journalId, {
+        records: dataset.records ?? [],
+        merges: dataset.merges ?? []
+      }, 'replace');
+      return;
+    }
     if (store?.upsertRecords && journalId) {
-      // Replace records for now (renderer owns ordering)
+      // Backward-compatible fallback for older tableStore API
       await store.upsertRecords(journalId, dataset.records ?? [], 'replace');
       return;
     }
