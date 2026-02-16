@@ -19,6 +19,13 @@ export function getRenderableCells(row, columns, cellSpanMap) {
   return cells;
 }
 
+export function getJournalTemplatesApi(runtime) {
+  return runtime?.sdo?.journalTemplates
+    || runtime?.api?.journalTemplates
+    || runtime?.sdo?.api?.journalTemplates
+    || null;
+}
+
 function normalizeDataset(input = {}) {
   return {
     records: Array.isArray(input.records) ? input.records : [],
@@ -88,7 +95,7 @@ export function createTableRendererModule(opts = {}) {
     const journal = (state?.journals ?? []).find((j) => j.id === journalId);
     let templateId = journal?.templateId;
 
-    const jt = runtime?.api?.journalTemplates || runtime?.sdo?.api?.journalTemplates;
+    const jt = getJournalTemplatesApi(runtime);
     if (!jt?.getTemplate) return { schema: { id: 'tpl:__none__', fields: [] }, journal, state };
 
     // Auto-heal: if journal exists but has no templateId, assign default (prefer "test")
