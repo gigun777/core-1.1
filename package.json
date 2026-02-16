@@ -1,0 +1,21 @@
+{
+  "name": "@sdo/core",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Headless-first SEDO core with ESM plugin system, navigation model, and backup APIs",
+  "exports": {
+    ".": "./dist/index.js",
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test"
+  }
+}

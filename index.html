@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>SDO Core Demo</title>
+    <link rel="stylesheet" href="./dist/styles.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- ESM-only demo bootstrap (do not mix with global/UMD sdoCore) -->
+    <script type="module">
+      // Import namespace to avoid hard failures when some named exports are missing
+      import * as sdoCore from "./dist/index.js";
+
+      // Optional UI + example module (may not exist in your build)
+      let createModuleManagerUI = null;
+      
+      try {
+        const uiMod = await import("./dist/ui/ui_core.js");
+        createModuleManagerUI = uiMod.createModuleManagerUI || null;
+      } catch (e) {
+        console.warn("UI module not found: ./dist/ui/ui_core.js", e);
+      }
+
+      const {
+        createSEDO,
+        createMemoryStorage,
+        createTableStoreModule,
+        createTableRendererModule
+      } = sdoCore;
+
+      if (typeof createSEDO !== "function") {
+        throw new Error("createSEDO export is missing from ./dist/index.js");
+      }
+
+      const modules = [];
+            if (typeof createTableStoreModule === "function") {
+        modules.push(createTableStoreModule());
+      } else {
+        console.warn("createTableStoreModule export is missing in ./dist/index.js");
+      }
+
+      if (typeof createTableRendererModule === "function") {
+        // Renderer should resolve real schema from registries later; fallback is ok for boot
+        modules.push(createTableRendererModule());
+      } else {
+        console.warn("createTableRendererModule export is missing in ./dist/index.js (this is OK if renderer is not built yet)");
+      }
+
+      const sdo = createSEDO({
+        storage: (typeof createMemoryStorage === "function") ? createMemoryStorage() : undefined,
+        mount: document.getElementById("app"),
+        createUI: createModuleManagerUI || undefined,
+        modules
+      });
+
+      await sdo.start();
+      window.sdo = sdo;
+      console.log("SDO started", sdo);
+    </script>
+  </body>
+</html>
