@@ -133,8 +133,15 @@ export function createTableRendererModule(opts = {}) {
 
   async function saveDataset(runtime, storage, journalId, dataset) {
     const store = runtime?.api?.tableStore || runtime?.sdo?.api?.tableStore;
+    if (store?.setDataset && journalId) {
+      await store.setDataset(journalId, {
+        records: dataset.records ?? [],
+        merges: dataset.merges ?? []
+      }, 'replace');
+      return;
+    }
     if (store?.upsertRecords && journalId) {
-      // Replace records for now (renderer owns ordering)
+      // Backward-compatible fallback for older tableStore API
       await store.upsertRecords(journalId, dataset.records ?? [], 'replace');
       return;
     }

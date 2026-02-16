@@ -90,3 +90,27 @@ test('table store backup provider and delta', async () => {
   const imported = await sdo2.api.tableStore.getDataset('j1');
   assert.equal(imported.records[0].fmt.a.ext.q, 7);
 });
+
+test('table store preserves merges via setDataset and export/import', async () => {
+  const sdo = createSEDO({ storage: createMemoryStorage(), modules: [createTableStoreModule()] });
+  await sdo.start();
+
+  await sdo.api.tableStore.setDataset('j1', {
+    records: [{ id: 'r1', cells: { a: { t: 'text', v: 'A' } } }],
+    merges: [{ rowId: 'r1', colKey: 'a', rowSpan: 2, colSpan: 2 }]
+  }, 'replace');
+
+  const ds = await sdo.api.tableStore.getDataset('j1');
+  assert.equal(ds.merges.length, 1);
+  assert.deepEqual(ds.merges[0], { rowId: 'r1', colKey: 'a', rowSpan: 2, colSpan: 2 });
+
+  const bundle = await sdo.api.tableStore.exportTableData();
+  assert.equal(bundle.datasets[0].merges.length, 1);
+
+  const sdo2 = createSEDO({ storage: createMemoryStorage(), modules: [createTableStoreModule()] });
+  await sdo2.start();
+  await sdo2.api.tableStore.importTableData(bundle, { mode: 'replace' });
+  const imported = await sdo2.api.tableStore.getDataset('j1');
+  assert.equal(imported.merges.length, 1);
+  assert.deepEqual(imported.merges[0], { rowId: 'r1', colKey: 'a', rowSpan: 2, colSpan: 2 });
+});
